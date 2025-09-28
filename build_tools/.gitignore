@@ -1,0 +1,27 @@
+# Build tools directory ignores
+
+# Build artifacts
+*.exe
+*.msi
+*.dmg
+*.app
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+
+# Build logs
+build.log
+install.log
+
+# Temporary build files
+build_temp/
+installer_temp/
+
+# Generated installer scripts
+installer_generated.iss
+
+# Code signing certificates (if any)
+*.p12
+*.pfx
+*.pem

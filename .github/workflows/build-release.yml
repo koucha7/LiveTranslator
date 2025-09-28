@@ -1,0 +1,257 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-build.txt
+    
+    - name: Build Windows executable
+      run: |
+        python build_tools\build.py
+    
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-build
+        path: |
+          dist/*.exe
+          dist/*.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        brew install ffmpeg
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-build.txt
+    
+    - name: Build macOS application
+      run: |
+        cd build_tools
+        python setup_macos.py py2app
+    
+    - name: Create macOS archive
+      run: |
+        cd build_tools/dist
+        zip -r "LiveTranslator-${{ github.ref_name }}-macos.zip" "YouTube Live Translator.app"
+        mv "LiveTranslator-${{ github.ref_name }}-macos.zip" ../../dist/
+    
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: macos-build
+        path: |
+          dist/*.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-build.txt
+    
+    - name: Build Linux executable
+      run: |
+        python build_tools/build.py
+    
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: linux-build
+        path: |
+          dist/*.tar.gz
+
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: livetranslator/youtube-live-translator
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: windows-build
+        path: ./release/windows/
+    
+    - name: Download macOS artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: macos-build
+        path: ./release/macos/
+    
+    - name: Download Linux artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-build
+        path: ./release/linux/
+    
+    - name: Generate release notes
+      id: generate_notes
+      run: |
+        cat > release_notes.md << 'EOF'
+        # YouTube Live Translator ${{ github.ref_name }}
+        
+        YouTubeライブ配信をリアルタイムで日本語に翻訳するツール
+        
+        ## 🚀 新機能
+        - リアルタイム音声認識・翻訳
+        - WebUI & CLI両対応
+        - 複数プラットフォーム対応
+        
+        ## 📦 配布ファイル
+        
+        ### Windows
+        - `LiveTranslator-*-setup.exe`: インストーラー版
+        - `LiveTranslator-*-windows-portable.zip`: ポータブル版
+        
+        ### macOS
+        - `LiveTranslator-*-macos.zip`: アプリケーション版
+        
+        ### Linux
+        - `LiveTranslator-*-linux-portable.tar.gz`: ポータブル版
+        
+        ### Docker
+        ```bash
+        docker pull livetranslator/youtube-live-translator:${{ github.ref_name }}
+        ```
+        
+        ## 📋 システム要件
+        - Python 3.8+ (ソース版)
+        - ffmpeg
+        - OpenAI APIキー (推奨)
+        
+        ## 🔧 セットアップ
+        詳細は [SETUP.md](https://github.com/${{ github.repository }}/blob/main/SETUP.md) をご覧ください。
+        
+        ## 🆘 サポート
+        問題や質問は [Issues](https://github.com/${{ github.repository }}/issues) までお願いします。
+        EOF
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: YouTube Live Translator ${{ github.ref_name }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        files: |
+          release/windows/*
+          release/macos/*
+          release/linux/*
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  test-builds:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+    
+    - name: Test artifacts
+      run: |
+        echo "🧪 配布ファイルのテスト"
+        
+        # ファイル存在確認
+        find . -name "*.exe" -o -name "*.zip" -o -name "*.tar.gz" | while read file; do
+          echo "✅ Found: $file ($(du -h "$file" | cut -f1))"
+        done
+        
+        # ZIPファイルの整合性確認
+        find . -name "*.zip" | while read zipfile; do
+          if unzip -t "$zipfile" > /dev/null 2>&1; then
+            echo "✅ ZIP integrity OK: $zipfile"
+          else
+            echo "❌ ZIP integrity FAILED: $zipfile"
+            exit 1
+          fi
+        done

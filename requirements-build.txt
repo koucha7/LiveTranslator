@@ -1,0 +1,23 @@
+# Build and Distribution Tools
+# 配布用ツールの依存関係
+
+# PyInstaller for Windows/Linux executables
+pyinstaller>=5.13.0
+
+# py2app for macOS applications (macOS only)
+py2app>=0.28.6; sys_platform == "darwin"
+
+# Auto-py-to-exe for GUI-based PyInstaller
+auto-py-to-exe>=2.40.0
+
+# Build tools
+wheel>=0.41.0
+setuptools>=68.0.0
+twine>=4.0.2
+
+# Installer creation
+nsis>=3.0.0; sys_platform == "win32"
+
+# Additional dependencies for bundling
+pillow>=10.0.0
+packaging>=23.0

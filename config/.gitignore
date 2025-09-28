@@ -1,0 +1,18 @@
+# Config directory specific ignores
+
+# Environment files (keep only examples)
+.env
+*.env
+!.env.example
+
+# User configurations
+user_config.json
+custom_settings.json
+
+# API credentials
+api_keys/
+credentials/
+
+# Backup configurations
+*.bak
+*.backup

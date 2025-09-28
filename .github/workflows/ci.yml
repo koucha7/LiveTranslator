@@ -1,0 +1,187 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install ffmpeg
+    
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # FFmpeg via Chocolatey would be installed here in a real scenario
+        echo "FFmpeg installation skipped for CI"
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Test configuration validation
+      run: |
+        python main.py config --validate || echo "Config validation needs API keys"
+    
+    - name: Test imports
+      run: |
+        python -c "
+        try:
+            from src.youtube_extractor import YouTubeLiveAudioExtractor
+            from src.speech_recognition import SpeechRecognizer
+            from src.translator import Translator
+            from src.live_translator import LiveTranslator
+            print('✅ All imports successful')
+        except ImportError as e:
+            print(f'❌ Import failed: {e}')
+            exit(1)
+        "
+    
+    - name: Test module functionality
+      run: |
+        python -c "
+        from src.config import config
+        print('✅ Config loaded successfully')
+        print(f'Audio sample rate: {config.audio.sample_rate}')
+        print(f'Translation engine: {config.translation.engine}')
+        "
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+    
+    - name: Run safety check
+      run: |
+        safety check --json || true
+    
+    - name: Run bandit security scan
+      run: |
+        bandit -r src/ -f json || true
+
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: |
+        docker build -t livetranslator:test .
+    
+    - name: Test Docker image
+      run: |
+        # Create a test config
+        mkdir -p test_config
+        echo "OPENAI_API_KEY=test_key" > test_config/.env
+        
+        # Test container startup
+        docker run --rm \
+          -v $(pwd)/test_config/.env:/home/app/config/.env:ro \
+          livetranslator:test config --validate || echo "Expected failure without real API key"
+    
+    - name: Test Docker Compose
+      run: |
+        # Create test environment
+        echo "OPENAI_API_KEY=test_key" > .env
+        
+        # Test compose file validation
+        docker-compose config
+
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black isort mypy
+        pip install -r requirements.txt
+    
+    - name: Check code formatting
+      run: |
+        black --check --diff src/
+        isort --check-only --diff src/
+    
+    - name: Type checking
+      run: |
+        mypy src/ --ignore-missing-imports || true
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check documentation
+      run: |
+        # Check if all required documentation files exist
+        required_files=("README.md" "SETUP.md" "CHANGELOG.md" "LICENSE")
+        
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          else
+            echo "✅ Found: $file"
+          fi
+        done
+    
+    - name: Validate markdown
+      uses: actionshub/markdownlint@main
+      with:
+        path: "*.md"
+        ignore: "node_modules"
+        config: |
+          {
+            "MD013": false,
+            "MD033": false
+          }

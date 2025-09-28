@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""
+YouTube Live Translator
+コマンドライン実行スクリプト
+"""
+
+import sys
+import os
+import argparse
+import logging
+
+# パスの設定
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from live_translator import LiveTranslator, ProcessingState, TranscriptionResult
+from translator import TranslationEngine
+from config import config
+
+def setup_logging(debug: bool = False):
+    """ログの設定"""
+    level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler('translator.log')
+        ]
+    )
+
+def main():
+    """メイン関数"""
+    parser = argparse.ArgumentParser(
+        description="YouTube Live Translator - YouTubeライブ配信の日本語文字起こしツール"
+    )
+    
+    # サブコマンド
+    subparsers = parser.add_subparsers(dest='command', help='実行モード')
+    
+    # Webアプリモード
+    web_parser = subparsers.add_parser('web', help='Webインターフェースを起動')
+    web_parser.add_argument('--port', type=int, default=8501, help='ポート番号')
+    web_parser.add_argument('--debug', action='store_true', help='デバッグモード')
+    
+    # CLIモード
+    cli_parser = subparsers.add_parser('cli', help='コマンドライン実行')
+    cli_parser.add_argument('url', help='YouTubeライブ配信のURL')
+    cli_parser.add_argument('--model', default='base', 
+                           choices=['tiny', 'base', 'small', 'medium', 'large'],
+                           help='Whisperモデル')
+    cli_parser.add_argument('--api', action='store_true', help='OpenAI Whisper APIを使用')
+    cli_parser.add_argument('--engine', choices=['openai', 'google'], default='openai',
+                           help='翻訳エンジン')
+    cli_parser.add_argument('--source', default='en', help='元言語')
+    cli_parser.add_argument('--target', default='ja', help='翻訳先言語')
+    cli_parser.add_argument('--duration', type=int, default=10, help='音声セグメント長（秒）')
+    cli_parser.add_argument('--debug', action='store_true', help='デバッグモード')
+    
+    # 設定確認モード
+    config_parser = subparsers.add_parser('config', help='設定を確認')
+    config_parser.add_argument('--validate', action='store_true', help='設定を検証')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return
+    
+    # ログ設定
+    setup_logging(getattr(args, 'debug', False))
+    
+    if args.command == 'web':
+        run_web_app(args)
+    elif args.command == 'cli':
+        run_cli_mode(args)
+    elif args.command == 'config':
+        show_config(args)
+
+def run_web_app(args):
+    """Webアプリを実行"""
+    try:
+        import streamlit as st
+        from streamlit import config as st_config
+        
+        # Streamlit設定
+        st_config.set_option('server.port', args.port)
+        st_config.set_option('server.headless', True)
+        st_config.set_option('server.enableXsrfProtection', False)
+        
+        # アプリ実行
+        os.system(f"streamlit run src/app.py --server.port {args.port}")
+        
+    except ImportError:
+        print("エラー: Streamlitがインストールされていません")
+        print("pip install streamlit でインストールしてください")
+    except Exception as e:
+        print(f"Webアプリ実行エラー: {e}")
+
+def run_cli_mode(args):
+    """CLIモードで実行"""
+    try:
+        # 設定確認
+        config.validate()
+        
+        # 翻訳エンジン設定
+        engine = TranslationEngine.OPENAI if args.engine == 'openai' else TranslationEngine.GOOGLE
+        
+        # 翻訳器作成
+        translator = LiveTranslator(
+            whisper_model=args.model,
+            use_whisper_api=args.api,
+            translation_engine=engine,
+            segment_duration=args.duration
+        )
+        
+        # 言語設定
+        translator.configure(
+            source_language=args.source,
+            target_language=args.target,
+            segment_duration=args.duration
+        )
+        
+        # コールバック設定
+        def transcription_callback(result: TranscriptionResult):
+            print(f"\n[{result.timestamp}]")
+            print(f"原文: {result.original_text}")
+            print(f"翻訳: {result.translated_text}")
+            print(f"信頼度: {result.confidence:.2f}")
+            print("-" * 50)
+        
+        def error_callback(error: str):
+            print(f"エラー: {error}", file=sys.stderr)
+        
+        def state_callback(state: ProcessingState):
+            print(f"状態: {state.value}")
+        
+        translator.set_transcription_callback(transcription_callback)
+        translator.set_error_callback(error_callback)
+        translator.set_state_callback(state_callback)
+        
+        print(f"YouTube Live Translator 開始")
+        print(f"URL: {args.url}")
+        print(f"モデル: {args.model}")
+        print(f"翻訳エンジン: {args.engine}")
+        print(f"言語: {args.source} -> {args.target}")
+        print("Ctrl+C で停止")
+        print("=" * 50)
+        
+        # 翻訳開始
+        if translator.start_translation(args.url):
+            try:
+                # 無限ループで実行
+                import time
+                while True:
+                    time.sleep(1)
+                    
+            except KeyboardInterrupt:
+                print("\n翻訳を停止しています...")
+                translator.stop_translation()
+                
+                # 統計表示
+                stats = translator.get_stats()
+                print(f"\n統計情報:")
+                print(f"処理セグメント数: {stats['segments_processed']}")
+                print(f"平均処理時間: {stats.get('avg_processing_time', 0):.2f}秒")
+                print(f"キャッシュヒット率: {stats.get('cache_hit_rate', 0):.2%}")
+                print(f"エラー数: {stats['errors']}")
+                
+                print("終了しました")
+        else:
+            print("翻訳の開始に失敗しました", file=sys.stderr)
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"実行エラー: {e}", file=sys.stderr)
+        sys.exit(1)
+
+def show_config(args):
+    """設定を表示"""
+    try:
+        print("現在の設定:")
+        print("=" * 40)
+        
+        config_dict = config.to_dict()
+        
+        for section, values in config_dict.items():
+            print(f"\n[{section.upper()}]")
+            for key, value in values.items():
+                print(f"  {key}: {value}")
+        
+        print(f"\nAPIキー:")
+        api_keys = config.get_api_keys()
+        for key, value in api_keys.items():
+            status = "設定済み" if value else "未設定"
+            print(f"  {key}: {status}")
+        
+        if args.validate:
+            print(f"\n設定検証:")
+            try:
+                config.validate()
+                print("  ✓ 設定は有効です")
+            except Exception as e:
+                print(f"  ✗ 設定エラー: {e}")
+                
+    except Exception as e:
+        print(f"設定表示エラー: {e}", file=sys.stderr)
+
+if __name__ == "__main__":
+    main()

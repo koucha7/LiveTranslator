@@ -1,0 +1,187 @@
+# ===== YouTube Live Translator .gitignore =====
+
+# ===== Environment & Configuration =====
+.env
+config/.env
+*.env
+.env.local
+.env.production
+secrets.json
+api_keys.txt
+
+# ===== Logs & Debug =====
+*.log
+logs/
+debug.log
+error.log
+translator.log
+streamlit.log
+
+# ===== Temporary & Cache Files =====
+temp/
+tmp/
+cache/
+.cache/
+downloads/
+.downloads/
+
+# ===== Audio & Media Files =====
+*.wav
+*.mp3
+*.aac
+*.m4a
+*.flac
+*.ogg
+*.wma
+*.mp4
+*.avi
+*.mkv
+*.mov
+audio_segments/
+media_cache/
+
+# ===== Build & Distribution =====
+build/
+dist/
+*.exe
+*.msi
+*.dmg
+*.app
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+release/
+installer/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ===== Virtual Environments =====
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+conda-env/
+pyenv/
+
+# ===== IDE & Editors =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+.sublime-project
+.sublime-workspace
+
+# ===== OS Generated =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===== Testing =====
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===== Jupyter Notebook =====
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# ===== Streamlit =====
+.streamlit/
+streamlit_cache/
+
+# ===== Docker =====
+docker-compose.override.yml
+.dockerignore
+
+# ===== Database =====
+*.db
+*.sqlite
+*.sqlite3
+db.json
+
+# ===== Model Files (Large Files) =====
+models/
+*.model
+*.pkl
+*.h5
+*.pth
+*.onnx
+whisper_models/
+
+# ===== API Keys & Secrets =====
+openai_key.txt
+google_api_key.txt
+credentials.json
+token.json
+
+# ===== User Data =====
+user_data/
+preferences.json
+bookmarks.json
+history.json
+
+# ===== Backup Files =====
+*.bak
+*.backup
+*.old
+*.orig
+
+# ===== Generated Documentation =====
+docs/_build/
+docs/site/
+
+# ===== Translation Cache =====
+translation_cache/
+*.cache
+
+# ===== Package Manager =====
+node_modules/
+package-lock.json
+yarn.lock
+
+# ===== System Files =====
+.fuse_hidden*
+.nfs*

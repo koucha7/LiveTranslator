@@ -1,0 +1,106 @@
+# YouTube Live Translator - Git Attributes Configuration
+
+# ===== Text Files =====
+*.md text eol=lf
+*.txt text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.xml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# ===== Binary Files =====
+*.exe binary
+*.msi binary
+*.dmg binary
+*.app binary
+*.deb binary
+*.rpm binary
+*.zip binary
+*.tar.gz binary
+*.7z binary
+*.rar binary
+
+# ===== Audio/Video Files =====
+*.wav binary
+*.mp3 binary
+*.aac binary
+*.m4a binary
+*.flac binary
+*.ogg binary
+*.wma binary
+*.mp4 binary
+*.avi binary
+*.mkv binary
+*.mov binary
+*.wmv binary
+
+# ===== Image Files =====
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.icns binary
+*.svg text
+
+# ===== Model Files =====
+*.model binary
+*.pkl binary
+*.h5 binary
+*.pth binary
+*.onnx binary
+*.bin binary
+
+# ===== Font Files =====
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+
+# ===== Document Files =====
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+*.ppt binary
+*.pptx binary
+
+# ===== Language Detection =====
+*.py linguist-language=Python
+*.js linguist-language=JavaScript
+*.md linguist-documentation
+*.txt linguist-documentation
+*.yml linguist-language=YAML
+*.yaml linguist-language=YAML
+
+# ===== Generated Files (exclude from language stats) =====
+build_tools/*.spec linguist-generated
+dist/* linguist-generated
+build/* linguist-generated
+*.egg-info/* linguist-generated
+
+# ===== Large Files (Git LFS if needed) =====
+# Uncomment if using Git LFS for large model files
+# *.model filter=lfs diff=lfs merge=lfs -text
+# *.bin filter=lfs diff=lfs merge=lfs -text
+# *.h5 filter=lfs diff=lfs merge=lfs -text
+
+# ===== Diff Settings =====
+*.json diff=json
+*.py diff=python
+*.md diff=markdown
+
+# ===== Merge Settings =====
+*.json merge=ours
+config/.env.example merge=ours

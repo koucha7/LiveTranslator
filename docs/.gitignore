@@ -1,0 +1,18 @@
+# Documentation directory ignores
+
+# Generated documentation
+_build/
+site/
+html/
+
+# Documentation tools cache
+.doctrees/
+
+# Sphinx
+_static/
+_templates/
+
+# Keep source files
+!*.md
+!*.rst
+!*.txt
