@@ -9,7 +9,7 @@ import time
 from typing import Optional, List, Dict, Any
 from enum import Enum
 import openai
-from googletrans import Translator as GoogleTranslator
+from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 
 # 環境変数を読み込み
@@ -20,13 +20,19 @@ class TranslationEngine(Enum):
     GOOGLE = "google"
 
 class Translator:
-    def __init__(self, engine: TranslationEngine = TranslationEngine.OPENAI):
+    def __init__(self, engine: TranslationEngine = TranslationEngine.GOOGLE):  # 無料版Google翻訳をデフォルト
         self.engine = engine
         self.logger = self._setup_logger()
         
-        # 初期化
+        # 初期化（自動フォールバック機能付き）
         if engine == TranslationEngine.OPENAI:
-            self._init_openai()
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                self.logger.warning("OpenAI APIキーが設定されていません。Google翻訳無料版に切り替えます。")
+                self.engine = TranslationEngine.GOOGLE
+                self._init_google()
+            else:
+                self._init_openai()
         else:
             self._init_google()
         
@@ -52,19 +58,22 @@ class Translator:
     def _init_openai(self):
         """OpenAI APIの初期化"""
         try:
-            self.client = openai.OpenAI(
-                api_key=os.getenv("OPENAI_API_KEY")
-            )
-            self.google_translator = None
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY environment variable is not set")
+                
+            self.client = openai.OpenAI(api_key=api_key)
             self.logger.info("OpenAI APIを初期化しました")
         except Exception as e:
             self.logger.error(f"OpenAI API初期化エラー: {e}")
-            raise
+            # 自動的にGoogle翻訳に切り替え
+            self.logger.warning("Google翻訳無料版に自動切り替えします")
+            self.engine = TranslationEngine.GOOGLE
+            self._init_google()
     
     def _init_google(self):
         """Google Translate APIの初期化"""
         try:
-            self.google_translator = GoogleTranslator()
             self.client = None
             self.logger.info("Google Translate APIを初期化しました")
         except Exception as e:
@@ -176,12 +185,10 @@ If the text contains technical terms or proper nouns, preserve them appropriatel
     ) -> Optional[str]:
         """Google Translateで翻訳"""
         try:
-            result = self.google_translator.translate(
-                text, 
-                src=source_lang, 
-                dest=target_lang
-            )
-            return result.text
+            # deep-translatorは翻訳器の初期化時に言語を指定し、translateメソッドでテキストのみ渡す
+            translator = GoogleTranslator(source=source_lang, target=target_lang)
+            result = translator.translate(text)
+            return result
             
         except Exception as e:
             self.logger.error(f"Google Translate翻訳エラー: {e}")

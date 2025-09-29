@@ -14,9 +14,9 @@ from queue import Queue
 from enum import Enum
 
 # 自作モジュールをインポート
-from youtube_extractor import YouTubeLiveAudioExtractor
-from speech_recognition import SpeechRecognizer
-from translator import Translator, TranslationEngine, TranslationCache
+from .youtube_extractor import YouTubeLiveAudioExtractor  
+from .speech_recognition import SpeechRecognizer
+from .translator import Translator, TranslationEngine, TranslationCache
 
 class ProcessingState(Enum):
     STOPPED = "stopped"
@@ -39,7 +39,7 @@ class LiveTranslator:
         self,
         whisper_model: str = "base",
         use_whisper_api: bool = False,
-        translation_engine: TranslationEngine = TranslationEngine.OPENAI,
+        translation_engine: TranslationEngine = TranslationEngine.GOOGLE,  # 無料版Google翻訳をデフォルト
         segment_duration: int = 10,
         cache_size: int = 500
     ):

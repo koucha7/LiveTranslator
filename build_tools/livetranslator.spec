@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 # プロジェクトのルートディレクトリ
-ROOT_DIR = Path(__file__).parent
+ROOT_DIR = Path(os.getcwd())
 
 # アプリケーション情報
 APP_NAME = "YouTube Live Translator"
@@ -36,9 +36,9 @@ hiddenimports = [
     'streamlit',
     'streamlit.web.cli',
     'yt_dlp',
-    'googletrans',
-    'pydub',
-    'pyaudio',
+    'deep_translator',
+    # 'pydub',
+    # 'pyaudio',
     'numpy',
     'pandas',
     'plotly',
@@ -48,6 +48,20 @@ hiddenimports = [
     'PIL.Image',
     'dotenv',
     'threading',
+    'src.youtube_extractor',
+    'src.speech_recognition',
+    'src.translator',
+    'src.live_translator',
+    'src.app',
+    'src.gui_app',
+    'tkinter',
+    'tkinter.ttk',
+    'tkinter.scrolledtext',
+    'tkinter.messagebox',
+    'tkinter.filedialog',
+    'audioop',
+    'pyaudioop',
+    'wave',
     'queue',
     'logging',
     'tempfile',
@@ -61,8 +75,6 @@ hiddenimports = [
 
 # 除外するモジュール
 excludes = [
-    'tkinter',
-    'tkinter.ttk',
     'matplotlib',
     'scipy',
     'jupyter',
@@ -70,6 +82,8 @@ excludes = [
     'IPython',
     'pytest',
     'sphinx',
+    'pydub',
+    'pyaudio',
 ]
 
 # 実行時フック
@@ -110,7 +124,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # コンソールアプリとして実行
+    console=False,  # GUIアプリとして実行（コンソール非表示）
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

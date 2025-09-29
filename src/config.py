@@ -29,7 +29,7 @@ class WhisperConfig:
 @dataclass
 class TranslationConfig:
     """翻訳設定"""
-    engine: str = "openai"  # openai or google
+    engine: str = "google"  # openai or google (デフォルトは無料のgoogle)
     source_language: str = "en"
     target_language: str = "ja"
     gpt_model: str = "gpt-3.5-turbo"
@@ -86,17 +86,38 @@ class Config:
         """設定の妥当性を検証"""
         api_keys = self.get_api_keys()
         
-        # OpenAI APIキーの確認
+        # OpenAI APIキーの確認と自動フォールバック
         if self.whisper.use_api or self.translation.engine == "openai":
             if not api_keys["openai"]:
-                raise ValueError("OpenAI APIキーが設定されていません")
+                print("OpenAI APIキーが設定されていません。無料版に切り替えます:")
+                print("- 音声認識: Whisperローカルモデル使用")
+                print("- 翻訳: Google Translate無料版使用")
+                
+                # 無料版設定に自動切り替え
+                self.whisper.use_api = False
+                self.translation.engine = "google"
         
         # Google Translate APIキーの確認
         if self.translation.engine == "google":
             if not api_keys["google_translate"]:
-                print("警告: Google Translate APIキーが設定されていません（googletrans使用）")
+                print("Google Translate無料版を使用します (googletrans)")
         
         return True
+    
+    def update_from_dict(self, settings: Dict[str, Any]):
+        """辞書から設定を更新"""
+        if 'whisper_model' in settings:
+            self.whisper.model_name = settings['whisper_model']
+        if 'use_whisper_api' in settings:
+            self.whisper.use_api = settings['use_whisper_api']
+        if 'translation_engine' in settings:
+            self.translation.engine = settings['translation_engine']
+        if 'segment_duration' in settings:
+            self.audio.segment_duration = settings['segment_duration']
+        if 'sample_rate' in settings:
+            self.audio.sample_rate = settings['sample_rate']
+        if 'chunk_size' in settings:
+            self.audio.chunk_size = settings['chunk_size']
     
     def to_dict(self) -> Dict[str, Any]:
         """設定を辞書として取得"""

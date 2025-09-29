@@ -16,7 +16,8 @@ setuptools>=68.0.0
 twine>=4.0.2
 
 # Installer creation
-nsis>=3.0.0; sys_platform == "win32"
+# Note: NSIS must be installed separately from https://nsis.sourceforge.io/
+# For Inno Setup, install from https://jrsoftware.org/isinfo.php
 
 # Additional dependencies for bundling
 pillow>=10.0.0

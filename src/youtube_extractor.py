@@ -13,7 +13,7 @@ import logging
 from typing import Optional, Generator, Callable
 from queue import Queue
 import yt_dlp
-from pydub import AudioSegment
+# from pydub import AudioSegment  # 一時的にコメントアウト
 import io
 
 class YouTubeLiveAudioExtractor:

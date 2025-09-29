@@ -12,9 +12,9 @@ import logging
 # パスの設定
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from live_translator import LiveTranslator, ProcessingState, TranscriptionResult
-from translator import TranslationEngine
-from config import config
+from src.live_translator import LiveTranslator, ProcessingState, TranscriptionResult
+from src.translator import TranslationEngine
+from src.config import config
 
 def setup_logging(debug: bool = False):
     """ログの設定"""
@@ -31,11 +31,16 @@ def setup_logging(debug: bool = False):
 def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(
-        description="YouTube Live Translator - YouTubeライブ配信の日本語文字起こしツール"
+        description="YouTube Live Translator - YouTubeライブ配信の日本語文字起こしツール\n引数なしで実行するとGUIモードで起動します。",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
     # サブコマンド
     subparsers = parser.add_subparsers(dest='command', help='実行モード')
+    
+    # GUIモード
+    gui_parser = subparsers.add_parser('gui', help='GUIアプリケーションを起動')
+    gui_parser.add_argument('--debug', action='store_true', help='デバッグモード')
     
     # Webアプリモード
     web_parser = subparsers.add_parser('web', help='Webインターフェースを起動')
@@ -48,9 +53,9 @@ def main():
     cli_parser.add_argument('--model', default='base', 
                            choices=['tiny', 'base', 'small', 'medium', 'large'],
                            help='Whisperモデル')
-    cli_parser.add_argument('--api', action='store_true', help='OpenAI Whisper APIを使用')
-    cli_parser.add_argument('--engine', choices=['openai', 'google'], default='openai',
-                           help='翻訳エンジン')
+    cli_parser.add_argument('--api', action='store_true', help='OpenAI Whisper APIを使用（デフォルト：ローカルWhisper）')
+    cli_parser.add_argument('--engine', choices=['openai', 'google'], default='google',
+                           help='翻訳エンジン (デフォルト: google無料版)')
     cli_parser.add_argument('--source', default='en', help='元言語')
     cli_parser.add_argument('--target', default='ja', help='翻訳先言語')
     cli_parser.add_argument('--duration', type=int, default=10, help='音声セグメント長（秒）')
@@ -62,19 +67,41 @@ def main():
     
     args = parser.parse_args()
     
+    # コマンドが指定されていない場合はデフォルトでGUIモードを起動
     if not args.command:
-        parser.print_help()
-        return
+        # GUIモード用のデフォルト引数を作成
+        args.command = 'gui'
+        args.debug = False
     
     # ログ設定
     setup_logging(getattr(args, 'debug', False))
     
-    if args.command == 'web':
+    if args.command == 'gui':
+        run_gui_app(args)
+    elif args.command == 'web':
         run_web_app(args)
     elif args.command == 'cli':
         run_cli_mode(args)
     elif args.command == 'config':
         show_config(args)
+
+def run_gui_app(args):
+    """GUIアプリを実行"""
+    try:
+        from src.gui_app import run_gui
+        
+        # ログ設定
+        setup_logging(args.debug)
+        
+        # GUIアプリケーション起動
+        run_gui()
+        
+    except ImportError as e:
+        import tkinter.messagebox as msgbox
+        msgbox.showerror("エラー", f"GUI関連のモジュールがインストールされていません:\n{e}\n\ntkinterがインストールされていることを確認してください")
+    except Exception as e:
+        import tkinter.messagebox as msgbox
+        msgbox.showerror("エラー", f"GUIアプリ実行エラー:\n{e}")
 
 def run_web_app(args):
     """Webアプリを実行"""
@@ -102,7 +129,7 @@ def run_cli_mode(args):
         # 設定確認
         config.validate()
         
-        # 翻訳エンジン設定
+        # 翻訳エンジン設定（デフォルトは無料のGoogle）
         engine = TranslationEngine.OPENAI if args.engine == 'openai' else TranslationEngine.GOOGLE
         
         # 翻訳器作成
@@ -178,32 +205,61 @@ def run_cli_mode(args):
 def show_config(args):
     """設定を表示"""
     try:
-        print("現在の設定:")
-        print("=" * 40)
+        # 設定情報を構築
+        config_text = "現在の設定:\n" + "=" * 40 + "\n"
         
         config_dict = config.to_dict()
         
         for section, values in config_dict.items():
-            print(f"\n[{section.upper()}]")
+            config_text += f"\n[{section.upper()}]\n"
             for key, value in values.items():
-                print(f"  {key}: {value}")
+                config_text += f"  {key}: {value}\n"
         
-        print(f"\nAPIキー:")
+        config_text += f"\nAPIキー:\n"
         api_keys = config.get_api_keys()
         for key, value in api_keys.items():
             status = "設定済み" if value else "未設定"
-            print(f"  {key}: {status}")
+            config_text += f"  {key}: {status}\n"
         
         if args.validate:
-            print(f"\n設定検証:")
+            config_text += f"\n設定検証:\n"
             try:
                 config.validate()
-                print("  ✓ 設定は有効です")
+                config_text += "  ✓ 設定は有効です\n"
             except Exception as e:
-                print(f"  ✗ 設定エラー: {e}")
+                config_text += f"  ✗ 設定エラー: {e}\n"
+        
+        # コンソールが利用可能な場合は通常の出力
+        try:
+            print(config_text)
+        except:
+            # GUIモードで実行されている場合はメッセージボックスで表示
+            try:
+                import tkinter as tk
+                import tkinter.messagebox as msgbox
+                import tkinter.scrolledtext as scrolledtext
+                
+                root = tk.Tk()
+                root.title("LiveTranslator - 設定情報")
+                root.geometry("600x500")
+                
+                text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, font=("Yu Gothic UI", 10))
+                text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+                text_widget.insert(tk.END, config_text)
+                text_widget.config(state=tk.DISABLED)
+                
+                root.mainloop()
+            except:
+                # 最後の手段：簡単なメッセージボックス
+                import tkinter.messagebox as msgbox
+                msgbox.showinfo("設定情報", config_text[:500] + "..." if len(config_text) > 500 else config_text)
                 
     except Exception as e:
-        print(f"設定表示エラー: {e}", file=sys.stderr)
+        try:
+            import tkinter.messagebox as msgbox
+            msgbox.showerror("エラー", f"設定表示エラー: {e}")
+        except:
+            print(f"設定表示エラー: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

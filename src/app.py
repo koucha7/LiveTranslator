@@ -14,8 +14,8 @@ import plotly.graph_objects as go
 from dataclasses import asdict
 
 # 自作モジュールをインポート
-from live_translator import LiveTranslator, ProcessingState, TranscriptionResult
-from translator import TranslationEngine
+from .live_translator import LiveTranslator, ProcessingState, TranscriptionResult
+from .translator import TranslationEngine
 
 # ページ設定
 st.set_page_config(
